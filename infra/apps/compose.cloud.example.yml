@@ -1,0 +1,83 @@
+services:
+  catalog:
+    image: vidasalud/catalog:1.0.0
+    environment:
+      SPRING_PROFILES_ACTIVE: cloud
+      DB_URL: ${CATALOG_DB_URL}
+      DB_USER: ${CATALOG_DB_USER}
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+
+  appointments:
+    image: vidasalud/appointments:1.0.0
+    environment:
+      SPRING_PROFILES_ACTIVE: cloud
+      DB_URL: ${APPOINTMENTS_DB_URL}
+      DB_USER: ${APPOINTMENTS_DB_USER}
+      DB_PASSWORD: ${APPOINTMENTS_DB_PASSWORD}
+      CATALOG_URL: http://catalog:8082
+      RABBITMQ_ENABLED: "true"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      - catalog
+      - rabbitmq
+
+  bff:
+    image: vidasalud/bff:1.0.0
+    environment:
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-d6edb470-bae6-41a0-b8c5-c2f55613b833}
+      ENTRA_API_CLIENT_ID: ${ENTRA_API_CLIENT_ID:-2590960d-413c-42a8-a1c7-fc1289f4fb44}
+      APPOINTMENTS_URL: http://appointments:8081
+      CATALOG_URL: http://catalog:8082
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - appointments
+      - catalog
+
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    hostname: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  notifications:
+    image: vidasalud/notifications:1.0.0
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbit-admin:
+    image: vidasalud/rabbit-admin:1.0.0
+    ports:
+      - "127.0.0.1:8084:8084"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBIT_ADMIN_KEY: ${RABBIT_ADMIN_KEY}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  rabbitmq_data:

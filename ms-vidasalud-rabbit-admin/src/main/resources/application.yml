@@ -1,0 +1,18 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: ms-vidasalud-rabbit-admin
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:vidasalud}
+    password: ${RABBITMQ_PASSWORD:vidasalud-local}
+vidasalud:
+  admin:
+    api-key: ${RABBIT_ADMIN_KEY:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

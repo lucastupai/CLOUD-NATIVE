@@ -1,0 +1,45 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: ms-vidasalud-notifications
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:vidasalud}
+    password: ${RABBITMQ_PASSWORD:vidasalud-local}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 5
+        retry:
+          enabled: false
+vidasalud:
+  rabbit:
+    dlq-auto-startup: ${RABBITMQ_DLQ_AUTO_STARTUP:false}
+    exchanges:
+      direct: ${RABBITMQ_EXCHANGE_DIRECT:cmd.direct}
+      topic: ${RABBITMQ_EXCHANGE_TOPIC:cmd.topic}
+      dlx: ${RABBITMQ_EXCHANGE_DLX:cmd.dead.dlx}
+    queues:
+      email: ${RABBITMQ_QUEUE_EMAIL:q.cmd.email}
+      email-dlq: ${RABBITMQ_QUEUE_EMAIL_DLQ:q.cmd.email.dlq}
+      admission: ${RABBITMQ_QUEUE_ADMISSION:q.cmd.admission}
+      admission-dlq: ${RABBITMQ_QUEUE_ADMISSION_DLQ:q.cmd.admission.dlq}
+      record: ${RABBITMQ_QUEUE_RECORD:q.cmd.record}
+      record-dlq: ${RABBITMQ_QUEUE_RECORD_DLQ:q.cmd.record.dlq}
+    routing-keys:
+      email-direct: ${RABBITMQ_KEY_EMAIL_DIRECT:email.send}
+      email-topic: ${RABBITMQ_KEY_EMAIL_TOPIC:email.*}
+      email-dlq: ${RABBITMQ_KEY_EMAIL_DLQ:email.dlq}
+      admission-direct: ${RABBITMQ_KEY_ADMISSION_DIRECT:admission.ticket}
+      admission-topic: ${RABBITMQ_KEY_ADMISSION_TOPIC:admission.#}
+      admission-dlq: ${RABBITMQ_KEY_ADMISSION_DLQ:admission.dlq}
+      record-direct: ${RABBITMQ_KEY_RECORD_DIRECT:record.gen}
+      record-topic: ${RABBITMQ_KEY_RECORD_TOPIC:record.*}
+      record-dlq: ${RABBITMQ_KEY_RECORD_DLQ:record.dlq}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -1,0 +1,92 @@
+services:
+  catalog:
+    build: ../../ms-vidasalud-catalog
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+
+  appointments:
+    build: ../../ms-vidasalud-appointments
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      CATALOG_URL: http://catalog:8082
+      RABBITMQ_ENABLED: "true"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-vidasalud-local}
+      RABBITMQ_DIRECT_EXCHANGE: cmd.direct
+      RABBITMQ_TOPIC_EXCHANGE: cmd.topic
+    depends_on:
+      - catalog
+      - rabbitmq
+
+  bff:
+    build: ../../ms-vidasalud-bff
+    ports:
+      - "8080:8080"
+    environment:
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-d6edb470-bae6-41a0-b8c5-c2f55613b833}
+      ENTRA_API_CLIENT_ID: ${ENTRA_API_CLIENT_ID:-2590980d-413c-42a8-a1c7-fc1289f4fb44}
+      APPOINTMENTS_URL: http://appointments:8081
+      CATALOG_URL: http://catalog:8082
+      CORS_ALLOWED_ORIGINS: http://localhost:4200
+    depends_on:
+      - appointments
+      - catalog
+
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    hostname: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-vidasalud-local}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  notifications:
+    build: ../../ms-vidasalud-notifications
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-vidasalud-local}
+      RABBITMQ_EXCHANGE_DIRECT: cmd.direct
+      RABBITMQ_EXCHANGE_TOPIC: cmd.topic
+      RABBITMQ_EXCHANGE_DLX: cmd.dead.dlx
+      RABBITMQ_QUEUE_EMAIL: q.cmd.email
+      RABBITMQ_QUEUE_EMAIL_DLQ: q.cmd.email.dlq
+      RABBITMQ_QUEUE_ADMISSION: q.cmd.admission
+      RABBITMQ_QUEUE_ADMISSION_DLQ: q.cmd.admission.dlq
+      RABBITMQ_QUEUE_RECORD: q.cmd.record
+      RABBITMQ_QUEUE_RECORD_DLQ: q.cmd.record.dlq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbit-admin:
+    build: ../../ms-vidasalud-rabbit-admin
+    ports:
+      - "127.0.0.1:8084:8084"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-vidasalud-local}
+      RABBIT_ADMIN_KEY: ${RABBIT_ADMIN_KEY:-vidasalud-admin-local-2026-key}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  rabbitmq_data:
